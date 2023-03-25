@@ -8,8 +8,8 @@ type Curl struct {
 }
 
 type HttpCommunication interface {
-	Request() *http.Request
-	Response() *http.Response
+	Request() (*http.Request, error)
+	Response() (*http.Response, error)
 }
 
 func New(curl string) *Curl {
@@ -18,10 +18,10 @@ func New(curl string) *Curl {
 	}
 }
 
-func (c *Curl) Request() *http.Request {
-	return &http.Request{}
+func (c *Curl) Request() (*http.Request, error) {
+	return &http.Request{}, nil
 }
 
-func (c *Curl) Response() *http.Response {
-	return &http.Response{}
+func (c *Curl) Response() (*http.Response, error) {
+	return &http.Response{}, nil
 }
