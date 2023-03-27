@@ -11,7 +11,7 @@ type Curl struct {
 }
 
 type Content struct {
-	Url     url.URL
+	Url     *url.URL
 	Options []Option
 }
 
