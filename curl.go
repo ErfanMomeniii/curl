@@ -1,11 +1,21 @@
 package curl
 
-import "net/http"
+import (
+	"net/http"
+	"net/url"
+)
 
 type Curl struct {
-	Content string
+	Content
 	HttpCommunication
 }
+
+type Content struct {
+	Url     url.URL
+	Options []Option
+}
+
+type Option map[string]string
 
 type HttpCommunication interface {
 	Request() (*http.Request, error)
@@ -14,7 +24,7 @@ type HttpCommunication interface {
 
 func New(curl string) *Curl {
 	return &Curl{
-		Content: curl,
+		Content: *generateContentFromCurl(curl),
 	}
 }
 
@@ -23,5 +33,14 @@ func (c *Curl) Request() (*http.Request, error) {
 }
 
 func (c *Curl) Response() (*http.Response, error) {
-	return &http.Response{}, nil
+	request, err := c.Request()
+	if err != nil {
+		return nil, err
+	}
+
+	return http.DefaultClient.Do(request)
+}
+
+func generateContentFromCurl(curl string) *Content {
+	return nil
 }
