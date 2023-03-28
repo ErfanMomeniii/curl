@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -73,17 +74,116 @@ func New(curl string) (*Curl, error) {
 	return &Curl{Content: *content}, err
 }
 
-func (c *Curl) Request() (*http.Request, error) {
-	return &http.Request{}, nil
+func (c *Curl) Request() *http.Request {
+	req := &http.Request{}
+
+	parseBody(req, c.Content.Option)
+	parseMethod(req, c.Content.Option)
+	parseHeader(req, c.Content.Option)
+
+	return req
 }
 
 func (c *Curl) Response() (*http.Response, error) {
-	request, err := c.Request()
-	if err != nil {
-		return nil, err
-	}
+	request := c.Request()
 
 	return http.DefaultClient.Do(request)
+}
+
+func parseKey(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] != '-' {
+			return s[i:]
+		}
+	}
+	return ""
+}
+
+func parseHeader(r *http.Request, op Option) {
+	if val, ok := op["user"]; ok {
+		val = parseValue(val)
+		v := strings.Split(val, ":")
+		r.SetBasicAuth(v[0], v[1])
+	}
+	if val, ok := op["H"]; ok {
+		values := strings.Split(val, ",")
+		for _, v := range values {
+			v = parseValue(v)
+			h := strings.Split(v, ":")
+			r.Header.Set(h[0], h[1])
+		}
+	}
+	if val, ok := op["header"]; ok {
+		values := strings.Split(val, ",")
+		for _, v := range values {
+			v = parseValue(v)
+			h := strings.Split(v, ":")
+			r.Header.Set(h[0], h[1])
+		}
+	}
+}
+
+func parseBody(r *http.Request, op Option) {
+	if val, ok := op["data-raw"]; ok {
+		body := strings.NewReader(val)
+		r, _ = http.NewRequest(http.MethodPost, r.URL.String(), body)
+	}
+	if val, ok := op["data-binery"]; ok {
+		f, _ := os.Open(val[1:])
+		r, _ = http.NewRequest(http.MethodPost, r.URL.String(), f)
+	}
+	if val, ok := op["data-ascii"]; ok {
+		body := strings.NewReader(val)
+		r, _ = http.NewRequest(http.MethodPost, r.URL.String(), body)
+	}
+	if val, ok := op["data-urlencode"]; ok {
+		body := strings.NewReader(val)
+		r, _ = http.NewRequest(http.MethodPost, r.URL.String(), body)
+	}
+	if val, ok := op["d"]; ok {
+		val = parseValue(val)
+		body := strings.NewReader(val)
+		r, _ = http.NewRequest(http.MethodPost, r.URL.String(), body)
+	}
+	if val, ok := op["data"]; ok {
+		val = parseValue(val)
+		body := strings.NewReader(val)
+		r, _ = http.NewRequest(http.MethodPost, r.URL.String(), body)
+	}
+	if val, ok := op["form"]; ok {
+		val = parseValue(val)
+		body := strings.NewReader(val)
+		r, _ = http.NewRequest(http.MethodPost, r.URL.String(), body)
+	}
+}
+
+func parseValue(s string) string {
+	if s[0] == '"' {
+		s = s[1:]
+	}
+	if s[len(s)-1] == '"' {
+		s = s[:len(s)-1]
+	}
+
+	return s
+}
+
+func parseMethod(r *http.Request, op Option) {
+	if _, ok := op["get"]; ok {
+		r.Method = http.MethodGet
+	}
+
+	if _, ok := op["G"]; ok {
+		r.Method = http.MethodGet
+	}
+
+	if val, ok := op["request"]; ok {
+		r.Method = parseValue(val)
+	}
+
+	if val, ok := op["X"]; ok {
+		r.Method = parseValue(val)
+	}
 }
 
 func parseCurl(curl string) (*Content, error) {
@@ -93,12 +193,17 @@ func parseCurl(curl string) (*Content, error) {
 	if arr[0] != "curl" {
 		return nil, NotValidError
 	}
+
 	c := &Content{}
+
 	var st Stack
+
 	for i := 1; i < len(arr); i++ {
 		if arr[i][0] == '-' {
 			if !arrayExist(boolOptions, arr[i]) {
 				st.Push(arr[i])
+			} else {
+				c.Option[parseKey(arr[i])] = "true"
 			}
 		} else {
 			if len(st) == 0 {
@@ -106,7 +211,7 @@ func parseCurl(curl string) (*Content, error) {
 			} else {
 				if val, ok := c.Option[st[0]]; ok {
 					val = val + "," + arr[i]
-					c.Option[st[0]] = val
+					c.Option[parseKey(st[0])] = val
 				} else {
 					c.Option[st[0]] = arr[i]
 				}
