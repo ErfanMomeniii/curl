@@ -2,15 +2,18 @@ package curl
 
 type Stack []string
 
-func (st Stack) Push(s string) {
+func PushStack(st Stack, s string) Stack {
 	var newSt Stack
 	newSt = append(newSt, s)
 	newSt = append(newSt, st...)
-	st = newSt
+	return newSt
 }
 
-func (st Stack) Pop() {
-	st = st[1:]
+func PopStack(st Stack) Stack {
+	if len(st) > 0 {
+		return st[1:]
+	}
+	return nil
 }
 
 func arrayExist(arr []string, str string) bool {
