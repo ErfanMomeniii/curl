@@ -30,7 +30,7 @@ import "github.com/erfanmomeniii/curl"
 
 ## Quick Start
 
-The following examples demonstrates how to use this package for generating request and response from curl:
+The following example demonstrates how to use this package for generating request and response from curl:
 
 ```go
 package main
