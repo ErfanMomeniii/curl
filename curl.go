@@ -2,6 +2,7 @@ package curl
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -105,8 +106,12 @@ func parseHeader(r *http.Request, op Option) *http.Request {
 
 	if val, ok := op["user"]; ok {
 		val = parseValue(val)
-		v := strings.Split(val, ":")
-		r.SetBasicAuth(v[0], v[1])
+		values := strings.Split(val, ",")
+		for _, v := range values {
+			v = parseValue(v)
+			v := strings.Split(val, ":")
+			r.SetBasicAuth(v[0], v[1])
+		}
 	}
 
 	if val, ok := op["H"]; ok {
@@ -170,11 +175,12 @@ func parseBody(r *http.Request, op Option) *http.Request {
 }
 
 func parseValue(s string) string {
-	if s[0] == '"' {
-		s = s[1:]
+	if string(s[0]) == "'" {
+		s = string('"') + s[1:]
 	}
-	if s[len(s)-1] == '"' {
-		s = s[:len(s)-1]
+
+	if string(s[len(s)-1]) == "'" {
+		s = s[:len(s)-1] + string('"')
 	}
 
 	return s
@@ -203,8 +209,10 @@ func parseMethod(r *http.Request, op Option) *http.Request {
 func parseCurl(curl string) (*Content, error) {
 	curl = strings.TrimLeft(curl, " ")
 	curl = strings.TrimRight(curl, " ")
-	arr := strings.Split(curl, " ")
-	if arr[0] != "curl" {
+	curl = strings.Replace(curl, "\\\n", "", -1)
+	curl = strings.Replace(curl, "\n", "", -1)
+
+	if curl[0:4] != "curl" {
 		return nil, NotValidError
 	}
 
@@ -213,26 +221,84 @@ func parseCurl(curl string) (*Content, error) {
 	}
 
 	var st Stack
-	for i := 1; i < len(arr); i++ {
-		if arr[i][0] == '-' {
-			if !arrayExist(boolOptions, arr[i]) {
-				st = PushStack(st, arr[i])
-			} else {
-				c.Option[parseKey(arr[i])] = "true"
+
+	i := strings.Index(curl, " ")
+	i++
+
+	for i < len(curl) {
+		if curl[i] == '-' {
+			n := strings.Index(curl[i:], " ")
+			if n == -1 {
+				n = len(curl) - i
 			}
-		} else {
+
+			if !arrayExist(boolOptions, curl[i:i+n]) {
+				st = PushStack(st, curl[i:i+n])
+			} else {
+				c.Option[parseKey(curl[i:i+n])] = "true"
+			}
+		} else if string(curl[i]) == "'" {
+			n := strings.Index(curl[i+1:], "'")
+			res := fmt.Sprintf("%s", curl[i+1:i+1+n])
+			i = i + 1 + n
+
 			if len(st) == 0 {
-				c.Url, _ = url.Parse(arr[i])
+				c.Url, _ = url.Parse(res)
 			} else {
 				if val, ok := c.Option[parseKey(st[0])]; ok {
-					val = val + "," + arr[i]
+					val = val + "," + parseValue(res)
 					c.Option[parseKey(st[0])] = val
 				} else {
-					c.Option[parseKey(st[0])] = arr[i]
+					c.Option[parseKey(st[0])] = parseValue(res)
+				}
+				st = PopStack(st)
+			}
+		} else if curl[i] == '"' {
+			n := strings.Index(curl[i+1:], string('"'))
+			res := fmt.Sprintf("%s", curl[i+1:i+1+n])
+			i = i + 1 + n
+
+			if len(st) == 0 {
+				c.Url, _ = url.Parse(res)
+			} else {
+				if val, ok := c.Option[parseKey(st[0])]; ok {
+					val = val + "," + parseValue(res)
+					c.Option[parseKey(st[0])] = val
+				} else {
+					c.Option[parseKey(st[0])] = parseValue(res)
+				}
+				st = PopStack(st)
+			}
+		} else {
+			n := strings.Index(curl[i:], " ")
+			if n == -1 {
+				n = len(curl) - (i)
+			}
+			res := fmt.Sprintf("%s", curl[i:i+n])
+			i = i + n - 1
+
+			if len(st) == 0 {
+				c.Url, _ = url.Parse(res)
+			} else {
+				if val, ok := c.Option[parseKey(st[0])]; ok {
+					val = val + "," + parseValue(res)
+					c.Option[parseKey(st[0])] = val
+				} else {
+					c.Option[parseKey(st[0])] = parseValue(res)
 				}
 				st = PopStack(st)
 			}
 		}
+
+		if i+1 >= len(curl) {
+			break
+		}
+
+		newI := strings.Index(curl[i+1:], " ")
+		if newI == -1 {
+			break
+		}
+		i += newI + 1 + 1
 	}
 	return c, nil
 }

@@ -43,7 +43,7 @@ func Test_Request(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "www.google.com", req.URL.String())
-	assert.Equal(t, "\"user=foobar\"", string(body))
+	assert.Equal(t, "user=foobar", string(body))
 	assert.Equal(
 		t, http.Header{"Test1": {"yes"}, "Test2": {"yes"}, "Content-Type": {"application/x-www-form-urlencoded"}}, req.Header,
 	)
@@ -58,7 +58,7 @@ func Test_Request(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "www.google.com", req.URL.String())
-	assert.Equal(t, "\"user=foobar\"", string(body))
+	assert.Equal(t, "user=foobar", string(body))
 	assert.Equal(
 		t, http.Header{"Test1": {"yes"}, "Test2": {"yes"}, "Content-Type": {"application/x-www-form-urlencoded"}}, req.Header,
 	)
